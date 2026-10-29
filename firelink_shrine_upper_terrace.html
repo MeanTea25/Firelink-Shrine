@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MODULE 2 PA - NUQUI</title>
+    <!-- Tailwind CSS for UI Overlay -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #08090b;
+            user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        .ds-font {
+            font-family: 'Cinzel', serif;
+        }
+        .glass-panel {
+            background: rgba(12, 14, 18, 0.82);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 163, 89, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <!-- Render Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay Header -->
+    <div class="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        <div class="glass-panel px-5 py-3 rounded-xl flex items-center gap-3">
+            <div class="p-2.5 bg-amber-950/60 rounded-lg border border-amber-600/40 text-amber-500">
+                <i class="fa-solid fa-fire-flame-curved text-xl animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="text-base sm:text-lg font-bold tracking-widest uppercase text-amber-200/90 ds-font">MODULE 2 PA - NUQUI</h1>
+                <p class="text-xs text-amber-500/70 tracking-wider">Firelink Shrine Upper Terrace • Dark Souls</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Controls Panel -->
+    <div class="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        <div class="glass-panel p-3.5 rounded-xl flex flex-col gap-3 w-64">
+            <span class="text-xs font-semibold text-amber-500/80 uppercase tracking-widest ds-font border-b border-amber-900/40 pb-1">Bonfire Controls</span>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <button id="toggle-bonfire-btn" class="glass-panel hover:bg-amber-950/50 p-2.5 rounded-lg text-xs flex items-center justify-center gap-2 border border-amber-500/40 text-amber-300 transition-all">
+                    <i class="fa-solid fa-fire text-amber-400"></i> Rest at Fire
+                </button>
+                <button id="toggle-fog-btn" class="glass-panel hover:bg-amber-950/50 p-2.5 rounded-lg text-xs flex items-center justify-center gap-2 border border-stone-600/40 text-stone-300 transition-all">
+                    <i class="fa-solid fa-cloud"></i> Atmosphere
+                </button>
+            </div>
+
+            <span class="text-xs font-semibold text-amber-500/80 uppercase tracking-widest ds-font border-b border-amber-900/40 pb-1 mt-1">Camera Views</span>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <button onclick="setCameraPreset('bonfire')" class="bg-stone-900/90 hover:bg-amber-950/60 p-2 rounded-lg text-left transition text-stone-300 hover:text-amber-200 border border-stone-800 flex items-center gap-2">
+                    <i class="fa-solid fa-eye text-amber-500 text-xs"></i> Bonfire
+                </button>
+                <button onclick="setCameraPreset('terrace')" class="bg-stone-900/90 hover:bg-amber-950/60 p-2 rounded-lg text-left transition text-stone-300 hover:text-amber-200 border border-stone-800 flex items-center gap-2">
+                    <i class="fa-solid fa-[#c8a261] fa-archway text-amber-500 text-xs"></i> Terrace
+                </button>
+                <button onclick="setCameraPreset('tree')" class="bg-stone-900/90 hover:bg-amber-950/60 p-2 rounded-lg text-left transition text-stone-300 hover:text-amber-200 border border-stone-800 flex items-center gap-2">
+                    <i class="fa-solid fa-tree text-amber-500 text-xs"></i> Dead Tree
+                </button>
+                <button onclick="setCameraPreset('overview')" class="bg-stone-900/90 hover:bg-amber-950/60 p-2 rounded-lg text-left transition text-stone-300 hover:text-amber-200 border border-stone-800 flex items-center gap-2">
+                    <i class="fa-solid fa-mountain text-amber-500 text-xs"></i> Overview
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Hint -->
+    <div class="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 hidden sm:block">
+        <div class="glass-panel px-5 py-2 rounded-full text-xs text-stone-300 flex items-center gap-5 border border-amber-600/30 shadow-2xl">
+            <span><i class="fa-solid fa-mouse text-amber-500 mr-1.5"></i><b>Drag:</b> Orbit Scene</span>
+            <span><i class="fa-solid fa-hand-back-fist text-amber-500 mr-1.5"></i><b>Right Click:</b> Pan</span>
+            <span><i class="fa-solid fa-arrows-up-down text-amber-500 mr-1.5"></i><b>Scroll:</b> Zoom</span>
+        </div>
+    </div>
+
+    <!-- Three.js Implementation Script -->
+    <script>
+        let scene, camera, renderer, controls;
+        let bonfireLight, bonfireFlames, bonfireEmbers;
+        let flameParticles = [], emberParticles = [];
+        let clock = new THREE.Clock();
+        let isBonfireLit = true;
+
+        // --- Procedural Canvas Texture Generators ---
+        function createStoneTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#2b2d31';
+            ctx.fillRect(0, 0, 512, 512);
+
+            // Draw flagstone patterns
+            ctx.strokeStyle = '#18191c';
+            ctx.lineWidth = 4;
+            for (let i = 0; i < 512; i += 64) {
+                ctx.beginPath();
+                ctx.moveTo(0, i); ctx.lineTo(512, i);
+                ctx.moveTo(i, 0); ctx.lineTo(i, 512);
+                ctx.stroke();
+            }
+
+            // Noise texture
+            for (let i = 0; i < 20000; i++) {
+                const x = Math.random() * 512;
+                const y = Math.random() * 512;
+                const val = Math.floor(Math.random() * 40);
+                ctx.fillStyle = `rgba(${val}, ${val}, ${val}, 0.15)`;
+                ctx.fillRect(x, y, 2, 2);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(6, 6);
+            return texture;
+        }
+
+        function createBarkTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#1c1815';
+            ctx.fillRect(0, 0, 256, 512);
+
+            ctx.fillStyle = '#0f0d0b';
+            for (let i = 0; i < 500; i++) {
+                ctx.fillRect(Math.random() * 256, Math.random() * 512, 3, Math.random() * 40);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(1, 4);
+            return texture;
+        }
+
+        function createFlameParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            grad.addColorStop(0, 'rgba(255, 240, 180, 1.0)');
+            grad.addColorStop(0.3, 'rgba(255, 120, 20, 0.8)');
+            grad.addColorStop(0.7, 'rgba(180, 30, 0, 0.3)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 64, 64);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- Init Scene ---
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0c10);
+            scene.fog = new THREE.FogExp2(0x0d1017, 0.022);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
+            camera.position.set(0, 7, 21);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            container.appendChild(renderer.domElement);
+
+            // Orbit Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.01; // Avoid camera clipping under floor
+            controls.minDistance = 4;
+            controls.maxDistance = 50;
+            controls.target.set(0, 2.5, 0);
+
+            // Lighting Setup
+            setupLighting();
+
+            // Construct Firelink Upper Terrace Environment
+            buildTerraceStructure();
+            buildBonfire();
+            buildDeadTree();
+            buildRuinWallsAndPillars();
+            buildEmberParticles();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            setupUIListeners();
+
+            // Render loop
+            animate();
+        }
+
+        // --- Lighting Setup ---
+        function setupLighting() {
+            // Cool Moonlight/Sky Overhead Light
+            const skyLight = new THREE.DirectionalLight(0x6b84a6, 0.4);
+            skyLight.position.set(-15, 35, 15);
+            skyLight.castShadow = true;
+            skyLight.shadow.mapSize.width = 2048;
+            skyLight.shadow.mapSize.height = 2048;
+            skyLight.shadow.bias = -0.0008;
+            scene.add(skyLight);
+
+            // Soft Ambient Light
+            const ambientLight = new THREE.AmbientLight(0x1a2130, 0.35);
+            scene.add(ambientLight);
+
+            // Dynamic Bonfire Light (Primary Light Source)
+            bonfireLight = new THREE.PointLight(0xff7711, 3.5, 28);
+            bonfireLight.position.set(0, 1.8, 0);
+            bonfireLight.castShadow = true;
+            bonfireLight.shadow.mapSize.width = 1024;
+            bonfireLight.shadow.mapSize.height = 1024;
+            bonfireLight.shadow.bias = -0.002;
+            scene.add(bonfireLight);
+        }
+
+        // --- Upper Terrace Architecture ---
+        function buildTerraceStructure() {
+            const terraceGroup = new THREE.Group();
+            const stoneTexture = createStoneTexture();
+
+            const stoneMat = new THREE.MeshStandardMaterial({
+                map: stoneTexture,
+                roughness: 0.85,
+                metalness: 0.15,
+                color: 0x5a5f66
+            });
+
+            const dirtMat = new THREE.MeshStandardMaterial({
+                color: 0x1e201b,
+                roughness: 0.95
+            });
+
+            // Main Circular Stone Flagstone Terrace Base
+            const terraceGeo = new THREE.CylinderGeometry(11, 11.5, 1.2, 32);
+            const terrace = new THREE.Mesh(terraceGeo, stoneMat);
+            terrace.position.set(0, -0.6, 0);
+            terrace.receiveShadow = true;
+            terrace.castShadow = true;
+            terraceGroup.add(terrace);
+
+            // Central Ring Raised Platform for Bonfire
+            const innerRingGeo = new THREE.CylinderGeometry(3.5, 3.8, 0.2, 24);
+            const innerRing = new THREE.Mesh(innerRingGeo, stoneMat);
+            innerRing.position.set(0, 0.1, 0);
+            innerRing.receiveShadow = true;
+            terraceGroup.add(innerRing);
+
+            // Surrounding Dirt & Patchy Moss Floor Details
+            const dirtPatchGeo = new THREE.CircleGeometry(10.8, 32);
+            dirtPatchGeo.rotateX(-Math.PI / 2);
+            const dirtPatch = new THREE.Mesh(dirtPatchGeo, dirtMat);
+            dirtPatch.position.set(0, 0.01, 0);
+            dirtPatch.receiveShadow = true;
+            terraceGroup.add(dirtPatch);
+
+            // Front Stone Stairs leading down
+            for (let i = 0; i < 5; i++) {
+                const stepGeo = new THREE.BoxGeometry(6 - i * 0.3, 0.25, 1.2);
+                const step = new THREE.Mesh(stepGeo, stoneMat);
+                step.position.set(0, -0.12 - i * 0.25, 11 + i * 0.9);
+                step.receiveShadow = true;
+                step.castShadow = true;
+                terraceGroup.add(step);
+            }
+
+            scene.add(terraceGroup);
+        }
+
+        // --- Dark Souls Bonfire ---
+        function buildBonfire() {
+            const bonfireGroup = new THREE.Group();
+            bonfireGroup.position.set(0, 0.2, 0);
+
+            // Ash Mound Base
+            const ashGeo = new THREE.ConeGeometry(1.6, 0.6, 20);
+            const ashMat = new THREE.MeshStandardMaterial({ color: 0x121214, roughness: 0.95 });
+            const ash = new THREE.Mesh(ashGeo, ashMat);
+            ash.position.y = 0.25;
+            ash.receiveShadow = true;
+            bonfireGroup.add(ash);
+
+            // Charred Bones & Wood Fragments in Ash
+            const boneMat = new THREE.MeshStandardMaterial({ color: 0xd4c3b2, roughness: 0.8 });
+            for (let i = 0; i < 12; i++) {
+                const angle = (i * Math.PI * 2) / 12;
+                const bone = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.7, 8), boneMat);
+                bone.position.set(Math.cos(angle) * 0.6, 0.3, Math.sin(angle) * 0.6);
+                bone.rotation.x = Math.random() * 0.8 - 0.4;
+                bone.rotation.z = Math.random() * 0.8 - 0.4;
+                bone.castShadow = true;
+                bonfireGroup.add(bone);
+            }
+
+            // Coiled Sword stuck in bonfire
+            const swordGroup = new THREE.Group();
+            swordGroup.position.set(0, 0.3, 0);
+            swordGroup.rotation.z = -0.12;
+
+            const metalMat = new THREE.MeshStandardMaterial({ color: 0x3a3d45, roughness: 0.4, metalness: 0.8 });
+
+            // Twisted Blade
+            const bladeGeo = new THREE.BoxGeometry(0.12, 2.2, 0.04, 1, 10, 1);
+            // Apply slight twist to blade geometry
+            const posAttr = bladeGeo.attributes.position;
+            for (let i = 0; i < posAttr.count; i++) {
+                const y = posAttr.getY(i);
+                const angle = y * 1.5;
+                const x = posAttr.getX(i);
+                const z = posAttr.getZ(i);
+                posAttr.setX(i, x * Math.cos(angle) - z * Math.sin(angle));
+                posAttr.setZ(i, x * Math.sin(angle) + z * Math.cos(angle));
+            }
+            bladeGeo.computeVertexNormals();
+
+            const blade = new THREE.Mesh(bladeGeo, metalMat);
+            blade.position.y = 1.1;
+            blade.castShadow = true;
+            swordGroup.add(blade);
+
+            // Crossguard & Hilt
+            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.12), metalMat);
+            guard.position.y = 2.2;
+            swordGroup.add(guard);
+
+            const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 12), metalMat);
+            hilt.position.y = 2.5;
+            swordGroup.add(hilt);
+
+            bonfireGroup.add(swordGroup);
+
+            // Animated Flame Particle System
+            const particleCount = 45;
+            const flameGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+
+            const particleTex = createFlameParticleTexture();
+
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 0.5;
+                positions[i * 3 + 1] = Math.random() * 1.5;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
+                sizes[i] = Math.random() * 1.2 + 0.8;
+
+                flameParticles.push({
+                    x: positions[i * 3],
+                    y: positions[i * 3 + 1],
+                    z: positions[i * 3 + 2],
+                    speed: Math.random() * 0.03 + 0.015,
+                    size: sizes[i]
+                });
+            }
+
+            flameGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            flameGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            const flameMat = new THREE.PointsMaterial({
+                size: 1.2,
+                map: particleTex,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            bonfireFlames = new THREE.Points(flameGeo, flameMat);
+            bonfireFlames.position.y = 0.4;
+            bonfireGroup.add(bonfireFlames);
+
+            scene.add(bonfireGroup);
+        }
+
+        // --- Gnarled Dead Tree ---
+        function buildDeadTree() {
+            const treeGroup = new THREE.Group();
+            treeGroup.position.set(-2, 0, -6.5);
+
+            const barkMat = new THREE.MeshStandardMaterial({
+                map: createBarkTexture(),
+                color: 0x221d18,
+                roughness: 0.95
+            });
+
+            // Main Trunk
+            const trunkGeo = new THREE.CylinderGeometry(0.8, 1.6, 7, 12);
+            const trunk = new THREE.Mesh(trunkGeo, barkMat);
+            trunk.position.y = 3.5;
+            trunk.rotation.z = -0.08;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            // Large Root Base spreading onto terrace
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * Math.PI * 2) / 5;
+                const root = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.6, 3, 8), barkMat);
+                root.position.set(Math.cos(angle) * 1.2, 0.8, Math.sin(angle) * 1.2);
+                root.rotation.x = Math.PI / 3;
+                root.rotation.y = angle;
+                root.castShadow = true;
+                treeGroup.add(root);
+            }
+
+            // Twisting Branches (Recursive Generation)
+            function addBranch(parent, length, radius, angleX, angleZ, depth) {
+                if (depth > 3) return;
+
+                const branchGeo = new THREE.CylinderGeometry(radius * 0.65, radius, length, 8);
+                const branch = new THREE.Mesh(branchGeo, barkMat);
+                branch.position.y = length / 2;
+                branch.castShadow = true;
+
+                const pivot = new THREE.Group();
+                pivot.position.y = length * 0.85;
+                pivot.rotation.x = angleX;
+                pivot.rotation.z = angleZ;
+
+                branch.add(pivot);
+                parent.add(branch);
+
+                // Sub-branches
+                const numSub = Math.floor(Math.random() * 2) + 2;
+                for (let i = 0; i < numSub; i++) {
+                    const rotX = (Math.random() - 0.5) * 1.2;
+                    const rotZ = (Math.random() - 0.5) * 1.2;
+                    addBranch(pivot, length * 0.72, radius * 0.65, rotX, rotZ, depth + 1);
+                }
+            }
+
+            const mainBranchGroup = new THREE.Group();
+            mainBranchGroup.position.y = 6.5;
+            treeGroup.add(mainBranchGroup);
+
+            addBranch(mainBranchGroup, 3.5, 0.5, 0.4, -0.3, 1);
+            addBranch(mainBranchGroup, 3.2, 0.45, -0.3, 0.5, 1);
+            addBranch(mainBranchGroup, 2.8, 0.4, 0.2, 0.6, 1);
+
+            scene.add(treeGroup);
+        }
+
+        // --- Ruin Walls, Arches & Pillars ---
+        function buildRuinWallsAndPillars() {
+            const ruinsGroup = new THREE.Group();
+
+            const stoneTex = createStoneTexture();
+            const ruinMat = new THREE.MeshStandardMaterial({
+                map: stoneTex,
+                color: 0x484c52,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+
+            // Curved Outer Terrace Pillars (Aesthetic Perimeter)
+            const radius = 10.2;
+            const pillarCount = 7;
+            for (let i = 0; i < pillarCount; i++) {
+                const angle = -Math.PI / 4 - (i * Math.PI * 0.8) / pillarCount;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                const pillarHeight = 4.5 + Math.random() * 2;
+                const pillarGeo = new THREE.CylinderGeometry(0.55, 0.65, pillarHeight, 12);
+                const pillar = new THREE.Mesh(pillarGeo, ruinMat);
+                pillar.position.set(x, pillarHeight / 2 - 0.2, z);
+                pillar.castShadow = true;
+                pillar.receiveShadow = true;
+                ruinsGroup.add(pillar);
+
+                // Capital top block
+                const cap = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 1.4), ruinMat);
+                cap.position.set(x, pillarHeight, z);
+                cap.castShadow = true;
+                ruinsGroup.add(cap);
+            }
+
+            // Back Broken Archway Wall
+            const archWallGroup = new THREE.Group();
+            archWallGroup.position.set(5.5, 0, -4.5);
+            archWallGroup.rotation.y = -Math.PI / 4;
+
+            // Wall Blocks
+            const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(2.0, 7.0, 1.2), ruinMat);
+            wallLeft.position.set(-2.2, 3.5, 0);
+            wallLeft.castShadow = true;
+            archWallGroup.add(wallLeft);
+
+            const wallRight = new THREE.Mesh(new THREE.BoxGeometry(2.0, 8.5, 1.2), ruinMat);
+            wallRight.position.set(2.2, 4.25, 0);
+            wallRight.castShadow = true;
+            archWallGroup.add(wallRight);
+
+            // Broken Arch Archway Top
+            const archTop = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.2, 1.2), ruinMat);
+            archTop.position.set(0, 6.5, 0);
+            archTop.rotation.z = -0.15;
+            archTop.castShadow = true;
+            archWallGroup.add(archTop);
+
+            ruinsGroup.add(archWallGroup);
+            scene.add(ruinsGroup);
+        }
+
+        // --- Rising Ember Particles ---
+        function buildEmberParticles() {
+            const emberCount = 80;
+            const emberGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(emberCount * 3);
+
+            for (let i = 0; i < emberCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 8;
+                positions[i * 3 + 1] = Math.random() * 10;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 8;
+
+                emberParticles.push({
+                    x: positions[i * 3],
+                    y: positions[i * 3 + 1],
+                    z: positions[i * 3 + 2],
+                    speedY: Math.random() * 0.02 + 0.01,
+                    speedX: (Math.random() - 0.5) * 0.01
+                });
+            }
+
+            emberGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const emberMat = new THREE.PointsMaterial({
+                color: 0xffaa33,
+                size: 0.18,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+
+            bonfireEmbers = new THREE.Points(emberGeo, emberMat);
+            scene.add(bonfireEmbers);
+        }
+
+        // --- Camera View Presets ---
+        function setCameraPreset(preset) {
+            let targetPos, targetFocus;
+
+            switch (preset) {
+                case 'bonfire':
+                    targetPos = { x: 0, y: 2.2, z: 5.5 };
+                    targetFocus = { x: 0, y: 1.5, z: 0 };
+                    break;
+                case 'terrace':
+                    targetPos = { x: 0, y: 7, z: 21 };
+                    targetFocus = { x: 0, y: 2.5, z: 0 };
+                    break;
+                case 'tree':
+                    targetPos = { x: -7, y: 5, z: -1 };
+                    targetFocus = { x: -2, y: 4, z: -6.5 };
+                    break;
+                case 'overview':
+                    targetPos = { x: 18, y: 16, z: 18 };
+                    targetFocus = { x: 0, y: 2, z: 0 };
+                    break;
+            }
+
+            if (targetPos && targetFocus) {
+                animateCameraTo(targetPos, targetFocus);
+            }
+        }
+
+        function animateCameraTo(targetPos, targetFocus) {
+            const steps = 40;
+            let currentStep = 0;
+
+            const startPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+            const startFocus = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
+
+            function step() {
+                currentStep++;
+                const progress = currentStep / steps;
+                const ease = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+
+                camera.position.x = startPos.x + (targetPos.x - startPos.x) * ease;
+                camera.position.y = startPos.y + (targetPos.y - startPos.y) * ease;
+                camera.position.z = startPos.z + (targetPos.z - startPos.z) * ease;
+
+                controls.target.x = startFocus.x + (targetFocus.x - startFocus.x) * ease;
+                controls.target.y = startFocus.y + (targetFocus.y - startFocus.y) * ease;
+                controls.target.z = startFocus.z + (targetFocus.z - startFocus.z) * ease;
+
+                controls.update();
+
+                if (currentStep < steps) {
+                    requestAnimationFrame(step);
+                }
+            }
+            step();
+        }
+
+        // --- UI Listeners ---
+        function setupUIListeners() {
+            const bonfireBtn = document.getElementById('toggle-bonfire-btn');
+            bonfireBtn.addEventListener('click', () => {
+                isBonfireLit = !isBonfireLit;
+                bonfireLight.intensity = isBonfireLit ? 3.5 : 0.2;
+                bonfireFlames.visible = isBonfireLit;
+                bonfireBtn.classList.toggle('opacity-50', !isBonfireLit);
+            });
+
+            const fogBtn = document.getElementById('toggle-fog-btn');
+            let thickFog = true;
+            fogBtn.addEventListener('click', () => {
+                thickFog = !thickFog;
+                scene.fog.density = thickFog ? 0.022 : 0.008;
+                fogBtn.classList.toggle('opacity-50', !thickFog);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Main Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = clock.getElapsedTime();
+
+            // Bonfire Light Flickering Effect
+            if (isBonfireLit && bonfireLight) {
+                bonfireLight.intensity = 3.2 + Math.sin(time * 12) * 0.4 + Math.cos(time * 23) * 0.3;
+            }
+
+            // Animate Flame Particles
+            if (bonfireFlames && isBonfireLit) {
+                const pos = bonfireFlames.geometry.attributes.position.array;
+                for (let i = 0; i < flameParticles.length; i++) {
+                    const p = flameParticles[i];
+                    p.y += p.speed;
+                    p.x += Math.sin(time * 5 + i) * 0.005;
+
+                    if (p.y > 2.2) {
+                        p.y = 0.1;
+                        p.x = (Math.random() - 0.5) * 0.5;
+                        p.z = (Math.random() - 0.5) * 0.5;
+                    }
+
+                    pos[i * 3] = p.x;
+                    pos[i * 3 + 1] = p.y;
+                    pos[i * 3 + 2] = p.z;
+                }
+                bonfireFlames.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // Animate Rising Ember Particles
+            if (bonfireEmbers) {
+                const pos = bonfireEmbers.geometry.attributes.position.array;
+                for (let i = 0; i < emberParticles.length; i++) {
+                    const p = emberParticles[i];
+                    p.y += p.speedY;
+                    p.x += Math.sin(time + i) * 0.01;
+
+                    if (p.y > 12) {
+                        p.y = 0;
+                        p.x = (Math.random() - 0.5) * 8;
+                        p.z = (Math.random() - 0.5) * 8;
+                    }
+
+                    pos[i * 3] = p.x;
+                    pos[i * 3 + 1] = p.y;
+                    pos[i * 3 + 2] = p.z;
+                }
+                bonfireEmbers.geometry.attributes.position.needsUpdate = true;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
